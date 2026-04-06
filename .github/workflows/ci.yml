@@ -32,6 +32,15 @@ jobs:
         severity: 'CRITICAL,HIGH'
 
     # ---------------------------
+    # BUILD DOCKER IMAGE
+    # ---------------------------
+    - name: Build Docker Image
+      run: |
+        docker build -t eswar1806/myapp:${{ github.sha }} -t eswar1806/myapp:latest .
+
+    # (Skip Trivy section, keep it the same)
+
+    # ---------------------------
     # PUSH TO DOCKER HUB
     # ---------------------------
     - name: Log in to Docker Hub
@@ -41,4 +50,6 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Push Image
-      run: docker push eswar1806/myapp:${{ github.sha }}
+      run: |
+        docker push eswar1806/myapp:${{ github.sha }}
+        docker push eswar1806/myapp:latest

@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "main" ]
 
+# Grant permission to push commits
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,28 +23,6 @@ jobs:
       run: docker build -t eswar1806/myapp:${{ github.sha }} .
 
     # ---------------------------
-    # TRIVY SCAN
-    # ---------------------------
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'eswar1806/myapp:${{ github.sha }}'
-        format: 'table'
-        exit-code: '0'          # Set to 0 so it just warns you, but doesn't fail the build
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
-
-    # ---------------------------
-    # BUILD DOCKER IMAGE
-    # ---------------------------
-    - name: Build Docker Image
-      run: |
-        docker build -t eswar1806/myapp:${{ github.sha }} -t eswar1806/myapp:latest .
-
-    # (Skip Trivy section, keep it the same)
-
-    # ---------------------------
     # PUSH TO DOCKER HUB
     # ---------------------------
     - name: Log in to Docker Hub
@@ -50,6 +32,20 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Push Image
+      run: docker push eswar1806/myapp:${{ github.sha }}
+
+    # ---------------------------
+    # THE ENTERPRISE GITOPS MAGIC
+    # ---------------------------
+    - name: Update Helm Values
       run: |
-        docker push eswar1806/myapp:${{ github.sha }}
-        docker push eswar1806/myapp:latest
+        # Use a Linux text editor (sed) to find the tag line and replace it with the new SHA
+        sed -i 's/tag: .*/tag: "${{ github.sha }}"/' myapp-chart/values.yaml
+
+    - name: Commit and Push to GitHub
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "GitHub Actions Bot"
+        git add myapp-chart/values.yaml
+        git commit -m "Update image tag to ${{ github.sha }}"
+        git push
